@@ -1,0 +1,29 @@
+[project]
+name = "finsumeval"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "huggingface-hub[hf-xet]>=0.36.0",
+    "loguru>=0.7.3",
+    "pip>=25.3",
+    "protobuf>=6.33.2",
+    "python-dotenv>=1.2.1",
+    "rouge>=1.0.1",
+    "rouge-score>=0.1.2",
+    "sentence-transformers>=5.2.0",
+    "sentencepiece>=0.2.1",
+    "spacy>=3.8.11",
+    "tokenizers>=0.22.1",
+    "torch>=2.6.0",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
