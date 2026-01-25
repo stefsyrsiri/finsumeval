@@ -17,6 +17,7 @@ dependencies = [
     "spacy>=3.8.11",
     "tokenizers>=0.22.1",
     "torch>=2.6.0",
+    "en-core-web-sm",
 ]
 
 [tool.uv.sources]
