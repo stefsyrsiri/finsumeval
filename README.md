@@ -27,7 +27,7 @@ Create a `data` directory at the root and add the two following .txt files from 
 Install the project's dependecies with uv
 
 ```bash
-uv sync --lock
+uv sync --locked
 ```
 
 Run the script
