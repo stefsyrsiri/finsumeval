@@ -18,6 +18,9 @@ dependencies = [
     "tokenizers>=0.22.1",
     "torch>=2.6.0",
     "en-core-web-sm",
+    "pandas>=3.0.2",
+    "openpyxl>=3.1.5",
+    "bert-score>=0.3.13",
 ]
 
 [tool.uv.sources]
