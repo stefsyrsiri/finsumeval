@@ -35,13 +35,3 @@ Run the script
 ```bash
 uv run main.py
 ```
-
-The console logs should look like this:
-
-![Console logs](images/image.png)
-
-### Important
-
-Please, note down **your** execution time from the console log for the `"MoritzLaurer/mDeBERTa-v3-base-mnli-xnli"` model.
-
-My execution time was ~30 seconds.
