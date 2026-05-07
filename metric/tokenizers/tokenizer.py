@@ -1,19 +1,13 @@
-"""Tokenizer module for different languages using spaCy.
-This module provides a Tokenizer class that loads spaCy models for
-English, Greek, and Spanish. It allows tokenization and sentence segmentation."""
-
 import spacy
+
+from metric.tokenizers.models_registry import MODELS
 
 
 class Tokenizer:
     _LOADED_MODELS = {}
 
     def __init__(self, lang_code):
-        models = {
-            "en": "en_core_web_sm",
-            "el": "el_core_news_sm",
-            "es": "es_core_news_sm",
-        }
+        models = MODELS
 
         if lang_code not in models:
             raise ValueError(f"No spaCy model available for language: {lang_code}")
@@ -30,14 +24,12 @@ class Tokenizer:
         return self.nlp(text)
 
     def tokenize(self, nlp, clean=False):
+        """Splits the text into tokens and optionally lemmatizes them, removes stopwords and punctuation."""
         if clean:
-            return [
-                token.lemma_
-                for token in nlp
-                if not token.is_stop and not token.is_punct
-            ]
+            return [token.lemma_ for token in nlp if not token.is_stop and not token.is_punct]
         else:
             return [token.text for token in nlp]
 
     def sentencize(self, nlp):
+        """Splits the text into sentences."""
         return [sent.text for sent in nlp.sents]
