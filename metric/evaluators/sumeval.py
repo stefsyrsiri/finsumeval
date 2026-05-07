@@ -1,6 +1,4 @@
-import time
 from statistics import harmonic_mean
-from typing import Dict
 
 import torch
 from loguru import logger
@@ -8,20 +6,22 @@ from sentence_transformers import SentenceTransformer, util
 from transformers import AutoTokenizer, pipeline, ZeroShotClassificationPipeline
 
 from metric.tokenizers.tokenizer import Tokenizer
+from metric.evaluators.schemas import ConcisenessScore, FaithfulnessScore, SumEvalScore
+from metric.evaluators.sentence_models_registry import SMODELS
 
 
 class SumEval:
     def __init__(
         self,
         lang: str = "en",
-        nli_model: str = "joeddav/xlm-roberta-large-xnli",
+        nli_model: str = "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
     ):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.lang = lang
         self.nli_model = nli_model
 
         self.tokenizer = Tokenizer(lang)
-        self.smodel = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+        self.smodel = SentenceTransformer(SMODELS.get(lang), device=device)
         self.nli_clf = self._load_nli_model(device)
 
     def _load_nli_model(self, device: str) -> ZeroShotClassificationPipeline:
@@ -33,18 +33,17 @@ class SumEval:
         self,
         summary: str,
         source: str,
-        threshold: float = 0.5,
-    ) -> Dict:
+        threshold: float = 0.55,
+    ) -> FaithfulnessScore:
         """Scores the faithfulness of the summary with respect to the source text.
 
         Args:
-            summary (str): The summary text.
+            summary (str): The candidate summary to evaluate.
             source (str): The source text.
-            threshold (float): The entailment score threshold to consider a statement as faithful. Defaults to 0.9.
+            threshold (float): The entailment score threshold to consider a statement as faithful. Defaults to 0.55.
         Returns:
-            dict: A dictionary containing the faithfulness score and list of unfaithful statements.
+            FaithfulnessScore: An object containing the faithfulness score and list of unfaithful statements.
         """
-        start_time = time.time()
         LABELS = ["entailment", "neutral", "contradiction"]
         source_nlp = self.tokenizer(source)
         src_statements = self.tokenizer.sentencize(source_nlp)
@@ -86,24 +85,20 @@ class SumEval:
         logger.debug(f"NLI calls made: {nli_calls}")
 
         faithfulness = 1 - len(unfaithful_indices) / len(summ_statements)
+        return FaithfulnessScore(score=faithfulness, unfaithful_statements=list(unfaithful_indices))
 
-        end_time = time.time()
-        return {
-            "score": faithfulness,
-            "unfaithful_statements": unfaithful_indices,
-            "duration": round(end_time - start_time, 2),
-        }
-
-    def score_conciseness(self, summary: str, threshold: float = 0.9) -> Dict:
+    def score_conciseness(self, summary: str, threshold: float = 0.9) -> ConcisenessScore:
         """Scores the conciseness of the summary.
 
         Args:
-            summary (str): The summary text.
+            summary (str): The candidate summary to evaluate.
             threshold (float): The cosine similarity threshold to consider statements as redundant.
         Returns:
-            dict: A dictionary containing the conciseness score and redundant statement pairs.
+            ConcisenessScore: An object containing the conciseness score and list of redundant statements.
         """
-        start_time = time.time()
+        if not isinstance(summary, str) or summary.strip() == "":
+            raise ValueError("The input summary must not be empty.")
+
         summ_nlp = self.tokenizer(summary)
         summ_statements = self.tokenizer.sentencize(summ_nlp)
         logger.debug(f"Summary statements: {len(summ_statements)}")
@@ -127,33 +122,31 @@ class SumEval:
 
         conciseness_score = len(unique_indices) / len(summ_statements)
 
-        end_time = time.time()
-        return {
-            "score": conciseness_score,
-            "redundant_pairs": redundant_pairs,
-            "duration": round(end_time - start_time, 2),
-        }
+        return ConcisenessScore(score=conciseness_score, redundant_statements=list(redundant_pairs))
 
     def score(
-        self, summary: str, source: str, faithfulness_threshold: float = 0.9, conciseness_threshold: float = 0.9
-    ) -> Dict:
+        self, summary: str, source: str, faithfulness_threshold: float = 0.55, conciseness_threshold: float = 0.9
+    ) -> SumEvalScore:
         """Scores the summary based on faithfulness and conciseness.
 
         Args:
             summary (str): The summary text.
             source (str): The source text.
-            faithfulness_threshold (float): The entailment score threshold for faithfulness. Defaults to 0.9.
+            faithfulness_threshold (float): The entailment score threshold for faithfulness. Defaults to 0.55.
             conciseness_threshold (float): The cosine similarity threshold for conciseness. Defaults to 0.9.
         Returns:
-            dict: A dictionary containing the overall score, faithfulness, and conciseness.
+            SumEvalScore: An object containing the overall score, faithfulness, and conciseness.
         """
         faithfulness = self.score_faithfulness(summary, source, faithfulness_threshold)
         conciseness = self.score_conciseness(summary, conciseness_threshold)
-        final_score = harmonic_mean([faithfulness["score"], conciseness["score"]])
+        final_score = (
+            harmonic_mean([faithfulness.score, conciseness.score])
+            if faithfulness.score > 0 and conciseness.score > 0
+            else 0.0
+        )
 
-        return {
-            "score": final_score,
-            "faithfulness": faithfulness,
-            "conciseness": conciseness,
-            "duration": round(faithfulness["duration"] + conciseness["duration"], 2),
-        }
+        return SumEvalScore(
+            score=final_score,
+            faithfulness=faithfulness,
+            conciseness=conciseness,
+        )
