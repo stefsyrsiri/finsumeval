@@ -5,18 +5,18 @@ from metric.tokenizers.models_registry import SPACY_MODELS
 
 
 class SpacyTokenizer(Tokenizer, Sentencizer):
+    def __init__(self, lang: str):
+        self.lang = lang
         self._models = SPACY_MODELS
+        self._loaded_models = {}
 
-    def __init__(self, lang_code):
-        models = MODELS
+        if lang not in self._models:
+            raise ValueError(f"No spaCy model available for language: {lang}")
 
-        if lang_code not in models:
-            raise ValueError(f"No spaCy model available for language: {lang_code}")
+        if lang not in self._loaded_models:
+            self._loaded_models[lang] = spacy.load(self._models[lang])
 
-        if lang_code not in Tokenizer._LOADED_MODELS:
-            Tokenizer._LOADED_MODELS[lang_code] = spacy.load(models[lang_code])
-
-        self.nlp = Tokenizer._LOADED_MODELS[lang_code]
+        self.nlp = self._loaded_models[lang]
         if "sentencizer" not in self.nlp.pipe_names:
             self.nlp.add_pipe("sentencizer")
         self.nlp.max_length = 2_000_000

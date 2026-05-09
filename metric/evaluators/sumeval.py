@@ -9,6 +9,7 @@ from metric.tokenizers.tokenizer import SpacyTokenizer
 from metric.evaluators.base import Evaluator
 from metric.evaluators.schemas import ConcisenessScore, FaithfulnessScore, SumEvalScore
 from metric.evaluators.sentence_models_registry import SENTENCE_MODELS
+from metric.evaluators.utils import classify_with_zero_shot_model, find_redundant_pairs
 
 
 class SumEval(Evaluator):
@@ -35,6 +36,7 @@ class SumEval(Evaluator):
         summary: str,
         source: str,
         threshold: float = 0.55,
+        labels: list[str] = ["entailment", "neutral", "contradiction"],
     ) -> FaithfulnessScore:
         """Scores the faithfulness of the summary with respect to the source text.
 
@@ -45,7 +47,6 @@ class SumEval(Evaluator):
         Returns:
             FaithfulnessScore: An object containing the faithfulness score and list of unfaithful statements.
         """
-        LABELS = ["entailment", "neutral", "contradiction"]
         source_nlp = self.tokenizer(source)
         src_statements = self.tokenizer.sentencize(source_nlp)
         logger.debug(f"Source statements: {len(src_statements)}")
@@ -55,36 +56,36 @@ class SumEval(Evaluator):
         logger.debug(f"Summary statements: {len(summ_statements)}")
 
         unfaithful_indices = set()
-        ent_src_indices = {}
-        src_indices = list(range(len(src_statements)))
-        summ_indices = list(range(len(summ_statements)))
+        used_src_indices = set()
 
         nli_calls = 0
         # Check each summary statement
-        for summ_statement in summ_statements:
+        for summ_idx, summ_statement in enumerate(summ_statements):
             # Against each source statement
-            for src_statement in src_statements:
-                sequence_to_classify = f"reference: {src_statement}\n\ncandidate: {summ_statement}"
-                classification = self.nli_clf(sequence_to_classify, LABELS)
+            for src_idx, src_statement in enumerate(src_statements):
+                # Skip already matched source statements
+                if src_idx in used_src_indices:
+                    continue
+                entailment_score = classify_with_zero_shot_model(
+                    model=self.nli_clf,
+                    labels=labels,
+                    src_statement=src_statement,
+                    summ_statement=summ_statement,
+                    target="entailment",
+                )
                 nli_calls += 1
-                entailment_score = classification["scores"][classification["labels"].index("entailment")]
 
                 # If at least one entailment is found, the statement is faithful
                 if entailment_score > threshold:
-                    key = src_indices[src_statements.index(src_statement)]
-                    if key in ent_src_indices:
-                        ent_src_indices[key].append(summ_indices[summ_statements.index(summ_statement)])
-                    else:
-                        ent_src_indices[key] = [summ_indices[summ_statements.index(summ_statement)]]
+                    # Mark source statement as used
+                    used_src_indices.add(src_idx)
                     break
 
                 # If all source statements are checked and none entail the summary statement, the statement is unfaithful
                 if src_statement == src_statements[-1]:
-                    key = summ_indices[summ_statements.index(summ_statement)]
-                    unfaithful_indices.add(key)
+                    unfaithful_indices.add(summ_idx)
 
         logger.debug(f"NLI calls made: {nli_calls}")
-
         faithfulness = 1 - len(unfaithful_indices) / len(summ_statements)
         return FaithfulnessScore(score=faithfulness, unfaithful_statements=list(unfaithful_indices))
 
@@ -110,19 +111,11 @@ class SumEval(Evaluator):
         # Compute cosine similarity matrix
         cosine_scores = util.pytorch_cos_sim(summ_embeddings, summ_embeddings)
 
-        redundant_pairs = []
-        unique_indices = set(range(len(summ_statements)))
-
         # Identify redundant pairs
-        for i in range(len(summ_statements)):
-            for j in range(i + 1, len(summ_statements)):
-                if cosine_scores[i][j] > threshold:
-                    redundant_pairs.append((i, j))
-                    if j in unique_indices:
-                        unique_indices.remove(j)
-
-        conciseness_score = len(unique_indices) / len(summ_statements)
-
+        unique_statements, redundant_pairs = find_redundant_pairs(
+            statements=summ_statements, similarity_scores=cosine_scores, similarity_threshold=threshold
+        )
+        conciseness_score = len(unique_statements) / len(summ_statements)
         return ConcisenessScore(score=conciseness_score, redundant_statements=list(redundant_pairs))
 
     def score(
@@ -145,9 +138,4 @@ class SumEval(Evaluator):
             if faithfulness.score > 0 and conciseness.score > 0
             else 0.0
         )
-
-        return SumEvalScore(
-            score=final_score,
-            faithfulness=faithfulness,
-            conciseness=conciseness,
-        )
+        return SumEvalScore(score=final_score, faithfulness=faithfulness, conciseness=conciseness)
