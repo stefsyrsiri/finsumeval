@@ -3,10 +3,11 @@ from time import perf_counter
 
 from loguru import logger
 
+from metric.extractors.base import Extractor
 from metric.extractors.schemas import NgramSentenceData, MatchedSentence
 
 
-class NgramExtractor:
+class NgramExtractor(Extractor):
     """Extracts sentences from the source document that have n-gram overlap with the summary sentences."""
 
     def __init__(self, tokenizer):

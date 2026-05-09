@@ -1,9 +1,9 @@
 import spacy
 
-from metric.tokenizers.models_registry import MODELS
+from metric.tokenizers.base import Tokenizer, Sentencizer
 
 
-class Tokenizer:
+class SpacyTokenizer(Tokenizer, Sentencizer):
     _LOADED_MODELS = {}
 
     def __init__(self, lang_code):

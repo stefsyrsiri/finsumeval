@@ -5,12 +5,13 @@ from loguru import logger
 from sentence_transformers import SentenceTransformer, util
 from transformers import AutoTokenizer, pipeline, ZeroShotClassificationPipeline
 
-from metric.tokenizers.tokenizer import Tokenizer
+from metric.tokenizers.tokenizer import SpacyTokenizer
+from metric.evaluators.base import Evaluator
 from metric.evaluators.schemas import ConcisenessScore, FaithfulnessScore, SumEvalScore
 from metric.evaluators.sentence_models_registry import SMODELS
 
 
-class SumEval:
+class SumEval(Evaluator):
     def __init__(
         self,
         lang: str = "en",
@@ -20,7 +21,7 @@ class SumEval:
         self.lang = lang
         self.nli_model = nli_model
 
-        self.tokenizer = Tokenizer(lang)
+        self.tokenizer = SpacyTokenizer(lang)
         self.smodel = SentenceTransformer(SMODELS.get(lang), device=device)
         self.nli_clf = self._load_nli_model(device)
 
