@@ -8,7 +8,7 @@ from transformers import AutoTokenizer, pipeline, ZeroShotClassificationPipeline
 from metric.tokenizers.tokenizer import SpacyTokenizer
 from metric.evaluators.base import Evaluator
 from metric.evaluators.schemas import ConcisenessScore, FaithfulnessScore, SumEvalScore
-from metric.evaluators.sentence_models_registry import SMODELS
+from metric.evaluators.sentence_models_registry import SENTENCE_MODELS
 
 
 class SumEval(Evaluator):
@@ -22,7 +22,7 @@ class SumEval(Evaluator):
         self.nli_model = nli_model
 
         self.tokenizer = SpacyTokenizer(lang)
-        self.smodel = SentenceTransformer(SMODELS.get(lang), device=device)
+        self.smodel = SentenceTransformer(SENTENCE_MODELS.get(lang), device=device)
         self.nli_clf = self._load_nli_model(device)
 
     def _load_nli_model(self, device: str) -> ZeroShotClassificationPipeline:

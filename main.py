@@ -7,7 +7,7 @@ from transformers import logging
 
 from metric.extractors.ngram import NgramExtractor
 from metric.evaluators.sumeval import SumEval
-from metric.tokenizers.tokenizer import Tokenizer
+from metric.tokenizers.tokenizer import SpacyTokenizer
 
 logging.set_verbosity_error()
 load_dotenv()
@@ -19,7 +19,7 @@ SUMMARY = os.getenv("SUMMARY", "data/17_1.txt")
 
 def create_proxy_ref(source, summary):
     logger.info("Starting n-gram extraction.")
-    tokenizer = Tokenizer("en")
+    tokenizer = SpacyTokenizer("en")
     extractor = NgramExtractor(tokenizer)
 
     ref, best_matches = extractor.extract_reference_summary(source, summary)

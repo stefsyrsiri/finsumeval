@@ -1,10 +1,11 @@
 import spacy
 
 from metric.tokenizers.base import Tokenizer, Sentencizer
+from metric.tokenizers.models_registry import SPACY_MODELS
 
 
 class SpacyTokenizer(Tokenizer, Sentencizer):
-    _LOADED_MODELS = {}
+        self._models = SPACY_MODELS
 
     def __init__(self, lang_code):
         models = MODELS
