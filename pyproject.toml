@@ -10,8 +10,6 @@ dependencies = [
     "pip>=25.3",
     "protobuf>=6.33.2",
     "python-dotenv>=1.2.1",
-    "rouge>=1.0.1",
-    "rouge-score>=0.1.2",
     "sentence-transformers>=5.2.0",
     "sentencepiece>=0.2.1",
     "spacy>=3.8.11",
@@ -19,8 +17,6 @@ dependencies = [
     "torch>=2.6.0",
     "en-core-web-sm",
     "pandas>=3.0.2",
-    "openpyxl>=3.1.5",
-    "bert-score>=0.3.13",
 ]
 
 [tool.uv.sources]
